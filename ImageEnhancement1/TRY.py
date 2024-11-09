@@ -1,32 +1,32 @@
-import imageio
+import imageio.v3 as iio
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
-# Membaca citra
-image_path = 'Pudel.jpg'
-image = imageio.imread(image_path, as_gray=True)
+# Membaca citra dan mengonversi menjadi grayscale
+image_path = '/content/Pudel.jpg'
+image = iio.imread(image_path, pilmode='L') / 255.0  # Normalize to [0, 1] range
 
 # Ekualisasi Histogram
 def histogram_equalization(img):
     hist, bins = np.histogram(img.flatten(), 256, [0, 1])
     cdf = hist.cumsum()
-    cdf_normalized = cdf * hist.max() / cdf.max()
-    cdf_m = np.ma.masked_equal(cdf, 0)
-    cdf_m = (cdf_m - cdf_m.min()) * 255 / (cdf_m.max() - cdf_m.min())
-    cdf = np.ma.filled(cdf_m, 0).astype('uint8')
-    img_equalized = cdf[img.astype('uint8')]
-    return img_equalized
+    cdf = cdf / cdf[-1]  # Normalize to [0,1]
+    img_equalized = np.interp(img.flatten(), bins[:-1], cdf)
+    return img_equalized.reshape(img.shape)
 
 # Filter Low-Pass (Gaussian Blur)
 blurred_image = ndimage.gaussian_filter(image, sigma=2)
 
 # Filter High-Pass (Sobel Filter for Edge Detection)
-sobel_image = ndimage.sobel(image)
+sobel_image_x = ndimage.sobel(image, axis=0)
+sobel_image_y = ndimage.sobel(image, axis=1)
+sobel_image = np.hypot(sobel_image_x, sobel_image_y)
 
 # Filter High-Boost
 boost_factor = 1.5
 high_boost_image = image + boost_factor * (image - blurred_image)
+high_boost_image = np.clip(high_boost_image, 0, 1)  # Ensure within valid range
 
 # Ekualisasi histogram pada citra asli
 image_equalized = histogram_equalization(image)
@@ -55,5 +55,4 @@ axes[4].imshow(image_equalized, cmap='gray')
 axes[4].set_title('Ekualisasi Histogram')
 axes[4].axis('off')
 
-plt.tight_layout()
-plt.show()
+# Hide the last subplot as it
